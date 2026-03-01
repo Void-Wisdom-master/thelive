@@ -1,5 +1,5 @@
 """
-八字排盘系统 - Streamlit 主应用
+八字排盘系统 - Streamlit 主应用（增强版）
 """
 import streamlit as st
 from datetime import datetime, time
@@ -54,22 +54,36 @@ st.markdown("""
     .pillar-label {
         color: #7f8c8d;
         font-size: 0.9em;
+        margin-bottom: 0.3em;
     }
     .pillar-value {
         color: #2c3e50;
-        font-size: 1.8em;
+        font-size: 2em;
         font-weight: bold;
+        margin: 0.2em 0;
     }
-    .shishen-tag {
-        background: #ecf0f1;
-        color: #e74c3c;
-        padding: 0.3em 0.8em;
-        border-radius: 20px;
-        font-size: 0.85em;
-        font-weight: bold;
+    .wuxing-badge {
         display: inline-block;
-        margin-top: 0.5em;
+        padding: 0.2em 0.6em;
+        border-radius: 12px;
+        font-size: 0.75em;
+        font-weight: bold;
+        margin: 0.2em;
     }
+    .wuxing-木 { background: #27ae60; color: white; }
+    .wuxing-火 { background: #e74c3c; color: white; }
+    .wuxing-土 { background: #f39c12; color: white; }
+    .wuxing-金 { background: #95a5a6; color: white; }
+    .wuxing-水 { background: #3498db; color: white; }
+    .yinyang-badge {
+        display: inline-block;
+        padding: 0.15em 0.5em;
+        border-radius: 10px;
+        font-size: 0.7em;
+        margin: 0.2em;
+    }
+    .yinyang-阳 { background: #fff3cd; color: #856404; }
+    .yinyang-阴 { background: #d1ecf1; color: #0c5460; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -147,17 +161,22 @@ def main():
                 shishen_result = analyzer.analyze(bazi_result, gender)
                 
                 # 显示结果
-                display_results(bazi_result, shishen_result)
+                display_results(bazi_result, shishen_result, birth_date)
                 
             except Exception as e:
                 st.error(f"计算出错：{str(e)}")
+                import traceback
+                st.error(traceback.format_exc())
 
 
-def display_results(bazi_result: dict, shishen_result: dict):
+def display_results(bazi_result: dict, shishen_result: dict, birth_date):
     """显示排盘结果"""
     
     st.markdown("---")
     st.markdown("### 📊 排盘结果")
+    
+    # 显示出生信息
+    st.info(f"📅 **出生日期**: {birth_date.strftime('%Y年%m月%d日')} （公历）")
     
     # 四柱展示
     st.markdown('<div class="pillar-container">', unsafe_allow_html=True)
@@ -173,11 +192,18 @@ def display_results(bazi_result: dict, shishen_result: dict):
     
     for col, (label, pillar) in zip(cols, pillars):
         with col:
+            wuxing_gan_html = f'<span class="wuxing-badge wuxing-{pillar["gan_wuxing"]}">{pillar["gan_wuxing"]}</span>'
+            wuxing_zhi_html = f'<span class="wuxing-badge wuxing-{pillar["zhi_wuxing"]}">{pillar["zhi_wuxing"]}</span>'
+            yinyang_gan_html = f'<span class="yinyang-badge yinyang-{pillar["gan_yinyang"]}">{pillar["gan_yinyang"]}</span>'
+            yinyang_zhi_html = f'<span class="yinyang-badge yinyang-{pillar["zhi_yinyang"]}">{pillar["zhi_yinyang"]}</span>'
+            
             st.markdown(f"""
                 <div class="pillar-item">
                     <div class="pillar-label">{label}</div>
                     <div class="pillar-value">{pillar['gan']}</div>
+                    <div>{wuxing_gan_html} {yinyang_gan_html}</div>
                     <div class="pillar-value">{pillar['zhi']}</div>
+                    <div>{wuxing_zhi_html} {yinyang_zhi_html}</div>
                 </div>
             """, unsafe_allow_html=True)
     
@@ -186,7 +212,34 @@ def display_results(bazi_result: dict, shishen_result: dict):
     # 日主信息
     st.markdown("### 🌟 命主信息")
     day_gan = bazi_result['day_pillar']['gan']
-    st.info(f"**日主（命主）**: {day_gan}  \n**五行属性**: {get_wuxing(day_gan)}")
+    day_gan_wuxing = bazi_result['day_pillar']['gan_wuxing']
+    day_gan_yinyang = bazi_result['day_pillar']['gan_yinyang']
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("日主（命主）", day_gan)
+    with col2:
+        st.metric("五行属性", day_gan_wuxing)
+    with col3:
+        st.metric("阴阳属性", day_gan_yinyang)
+    
+    # 五行统计
+    st.markdown("### 🎨 五行分析")
+    wuxing_count = {}
+    for pillar_key in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']:
+        pillar = bazi_result[pillar_key]
+        gan_wuxing = pillar['gan_wuxing']
+        zhi_wuxing = pillar['zhi_wuxing']
+        wuxing_count[gan_wuxing] = wuxing_count.get(gan_wuxing, 0) + 1
+        wuxing_count[zhi_wuxing] = wuxing_count.get(zhi_wuxing, 0) + 1
+    
+    # 按照五行顺序显示
+    wuxing_order = ['木', '火', '土', '金', '水']
+    cols = st.columns(5)
+    for col, wuxing in zip(cols, wuxing_order):
+        with col:
+            count = wuxing_count.get(wuxing, 0)
+            st.metric(label=wuxing, value=f"{count} 个")
     
     # 十神分析
     st.markdown("### 🔍 十神分析")
@@ -202,35 +255,43 @@ def display_results(bazi_result: dict, shishen_result: dict):
     for col, (label, shishen) in zip(cols, shishen_pillars):
         with col:
             st.markdown(f"**{label}**")
-            st.markdown(f"天干: `{shishen['gan']}`")
+            if label == "日柱":
+                st.markdown(f"天干: `{shishen['gan']}` (日主)")
+            else:
+                st.markdown(f"天干: `{shishen['gan']}`")
             st.markdown(f"地支: `{shishen['zhi']}`")
     
     # 十神统计
     st.markdown("### 📈 十神统计")
     shishen_count = {}
-    for pillar_name in ['year', 'month', 'hour']:  # 不统计日柱
+    for pillar_name in ['year', 'month', 'hour']:  # 不统计日柱的日主
         gan_shishen = shishen_result[pillar_name]['gan']
         zhi_shishen = shishen_result[pillar_name]['zhi']
         shishen_count[gan_shishen] = shishen_count.get(gan_shishen, 0) + 1
         shishen_count[zhi_shishen] = shishen_count.get(zhi_shishen, 0) + 1
     
+    # 加上日支的十神
+    day_zhi_shishen = shishen_result['day']['zhi']
+    shishen_count[day_zhi_shishen] = shishen_count.get(day_zhi_shishen, 0) + 1
+    
     if shishen_count:
-        cols = st.columns(len(shishen_count))
-        for col, (shishen, count) in zip(cols, shishen_count.items()):
+        # 按数量排序
+        sorted_shishen = sorted(shishen_count.items(), key=lambda x: x[1], reverse=True)
+        
+        # 动态创建列
+        num_cols = min(len(sorted_shishen), 5)
+        cols = st.columns(num_cols)
+        
+        for col, (shishen, count) in zip(cols, sorted_shishen[:5]):
             with col:
                 st.metric(label=shishen, value=f"{count} 个")
-
-
-def get_wuxing(gan: str) -> str:
-    """获取天干五行属性"""
-    wuxing_map = {
-        '甲': '木', '乙': '木',
-        '丙': '火', '丁': '火',
-        '戊': '土', '己': '土',
-        '庚': '金', '辛': '金',
-        '壬': '水', '癸': '水'
-    }
-    return wuxing_map.get(gan, '未知')
+        
+        # 如果超过5个，显示剩余的
+        if len(sorted_shishen) > 5:
+            st.markdown("**其他十神**:")
+            remaining = sorted_shishen[5:]
+            remaining_text = " | ".join([f"{s}: {c}个" for s, c in remaining])
+            st.text(remaining_text)
 
 
 if __name__ == "__main__":
