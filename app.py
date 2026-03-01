@@ -1,5 +1,5 @@
 """
-八字排盘系统 - Streamlit 主应用（高精度版本）
+八字排盘系统 - Streamlit 主应用（修正版）
 """
 import streamlit as st
 from datetime import datetime, time
@@ -93,7 +93,7 @@ def main():
     
     # 标题
     st.markdown('<div class="main-title">🔮 八字排盘系统</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">高精度天文历法算法 · 真太阳时校正</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">高精度儒略日算法 · 标准天文历法</div>', unsafe_allow_html=True)
     
     # 创建表单
     with st.form("bazi_form"):
@@ -121,16 +121,6 @@ def main():
         with col4:
             birth_minute = st.number_input("⏰ 出生分钟", min_value=0, max_value=59, value=30)
         
-        # 经度选择
-        longitude = st.number_input(
-            "🌍 出生地经度（东经为正，用于真太阳时校正）",
-            min_value=73.0,
-            max_value=135.0,
-            value=120.0,
-            step=0.1,
-            help="例如：北京 116.4°，上海 121.5°，广州 113.3°，成都 104.1°"
-        )
-        
         submit_button = st.form_submit_button("🎯 开始排盘", use_container_width=True)
     
     # 处理提交
@@ -146,8 +136,7 @@ def main():
                     birth_date.month,
                     birth_date.day,
                     birth_hour,
-                    birth_minute,
-                    longitude
+                    birth_minute
                 )
                 
                 # 十神分析
@@ -169,13 +158,7 @@ def display_results(bazi_result: dict, shishen_result: dict, birth_date, birth_h
     st.markdown("---")
     
     # 显示时间信息
-    st.markdown("### ⏰ 时间信息")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info(f"**📅 出生日期（公历）**: {birth_date.strftime('%Y年%m月%d日')} {birth_hour:02d}:{birth_minute:02d}")
-    with col2:
-        solar_time = bazi_result['solar_time']
-        st.info(f"**☀️ 真太阳时**: {solar_time['hour']:02d}:{solar_time['minute']:02d} （经度 {solar_time['longitude']}°）")
+    st.info(f"**📅 出生时间（公历）**: {birth_date.strftime('%Y年%m月%d日')} {birth_hour:02d}:{birth_minute:02d}")
     
     # 四柱展示
     st.markdown("### 📊 四柱八字")
@@ -288,6 +271,13 @@ def display_results(bazi_result: dict, shishen_result: dict, birth_date, birth_h
         for col, (shishen, count) in zip(cols, sorted_shishen[:5]):
             with col:
                 st.metric(label=shishen, value=f"{count} 个")
+        
+        # 如果超过5个，显示剩余的
+        if len(sorted_shishen) > 5:
+            st.markdown("**其他十神**:")
+            remaining = sorted_shishen[5:]
+            remaining_text = " | ".join([f"{s}: {c}个" for s, c in remaining])
+            st.text(remaining_text)
 
 
 if __name__ == "__main__":
