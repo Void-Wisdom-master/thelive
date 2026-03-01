@@ -1,5 +1,5 @@
 """
-八字排盘系统 - Streamlit 主应用（增强版）
+八字排盘系统 - Streamlit 主应用（高精度版本）
 """
 import streamlit as st
 from datetime import datetime, time
@@ -93,7 +93,7 @@ def main():
     
     # 标题
     st.markdown('<div class="main-title">🔮 八字排盘系统</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">输入出生信息，获取您的八字命盘</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">高精度天文历法算法 · 真太阳时校正</div>', unsafe_allow_html=True)
     
     # 创建表单
     with st.form("bazi_form"):
@@ -102,7 +102,7 @@ def main():
         with col1:
             birth_date = st.date_input(
                 "📅 出生日期（公历）",
-                value=datetime(2000, 1, 1),
+                value=datetime(2006, 3, 26),
                 min_value=datetime(1900, 1, 1),
                 max_value=datetime(2100, 12, 31)
             )
@@ -114,26 +114,21 @@ def main():
                 index=0
             )
         
-        # 时辰选择
-        shichen_options = {
-            "子时 (23:00-00:59)": 0,
-            "丑时 (01:00-02:59)": 1,
-            "寅时 (03:00-04:59)": 2,
-            "卯时 (05:00-06:59)": 3,
-            "辰时 (07:00-08:59)": 4,
-            "巳时 (09:00-10:59)": 5,
-            "午时 (11:00-12:59)": 6,
-            "未时 (13:00-14:59)": 7,
-            "申时 (15:00-16:59)": 8,
-            "酉时 (17:00-18:59)": 9,
-            "戌时 (19:00-20:59)": 10,
-            "亥时 (21:00-22:59)": 11
-        }
+        # 时间选择
+        col3, col4 = st.columns(2)
+        with col3:
+            birth_hour = st.number_input("⏰ 出生小时", min_value=0, max_value=23, value=11)
+        with col4:
+            birth_minute = st.number_input("⏰ 出生分钟", min_value=0, max_value=59, value=30)
         
-        shichen = st.selectbox(
-            "🕐 出生时辰",
-            options=list(shichen_options.keys()),
-            index=0
+        # 经度选择
+        longitude = st.number_input(
+            "🌍 出生地经度（东经为正，用于真太阳时校正）",
+            min_value=73.0,
+            max_value=135.0,
+            value=120.0,
+            step=0.1,
+            help="例如：北京 116.4°，上海 121.5°，广州 113.3°，成都 104.1°"
         )
         
         submit_button = st.form_submit_button("🎯 开始排盘", use_container_width=True)
@@ -145,15 +140,14 @@ def main():
                 # 创建计算器实例
                 calculator = BaziCalculator()
                 
-                # 获取时辰索引
-                hour_index = shichen_options[shichen]
-                
                 # 计算八字
                 bazi_result = calculator.calculate_bazi(
                     birth_date.year,
                     birth_date.month,
                     birth_date.day,
-                    hour_index
+                    birth_hour,
+                    birth_minute,
+                    longitude
                 )
                 
                 # 十神分析
@@ -161,7 +155,7 @@ def main():
                 shishen_result = analyzer.analyze(bazi_result, gender)
                 
                 # 显示结果
-                display_results(bazi_result, shishen_result, birth_date)
+                display_results(bazi_result, shishen_result, birth_date, birth_hour, birth_minute)
                 
             except Exception as e:
                 st.error(f"计算出错：{str(e)}")
@@ -169,18 +163,23 @@ def main():
                 st.error(traceback.format_exc())
 
 
-def display_results(bazi_result: dict, shishen_result: dict, birth_date):
+def display_results(bazi_result: dict, shishen_result: dict, birth_date, birth_hour: int, birth_minute: int):
     """显示排盘结果"""
     
     st.markdown("---")
-    st.markdown("### 📊 排盘结果")
     
-    # 显示出生信息
-    st.info(f"📅 **出生日期**: {birth_date.strftime('%Y年%m月%d日')} （公历）")
+    # 显示时间信息
+    st.markdown("### ⏰ 时间信息")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.info(f"**📅 出生日期（公历）**: {birth_date.strftime('%Y年%m月%d日')} {birth_hour:02d}:{birth_minute:02d}")
+    with col2:
+        solar_time = bazi_result['solar_time']
+        st.info(f"**☀️ 真太阳时**: {solar_time['hour']:02d}:{solar_time['minute']:02d} （经度 {solar_time['longitude']}°）")
     
     # 四柱展示
+    st.markdown("### 📊 四柱八字")
     st.markdown('<div class="pillar-container">', unsafe_allow_html=True)
-    st.markdown('<div class="pillar-title">四柱八字</div>', unsafe_allow_html=True)
     
     cols = st.columns(4)
     pillars = [
@@ -197,6 +196,10 @@ def display_results(bazi_result: dict, shishen_result: dict, birth_date):
             yinyang_gan_html = f'<span class="yinyang-badge yinyang-{pillar["gan_yinyang"]}">{pillar["gan_yinyang"]}</span>'
             yinyang_zhi_html = f'<span class="yinyang-badge yinyang-{pillar["zhi_yinyang"]}">{pillar["zhi_yinyang"]}</span>'
             
+            extra_info = ""
+            if label == "时柱":
+                extra_info = f'<div style="font-size: 0.7em; color: #7f8c8d; margin-top: 0.5em;">{pillar.get("shi_duan", "")}</div>'
+            
             st.markdown(f"""
                 <div class="pillar-item">
                     <div class="pillar-label">{label}</div>
@@ -204,10 +207,14 @@ def display_results(bazi_result: dict, shishen_result: dict, birth_date):
                     <div>{wuxing_gan_html} {yinyang_gan_html}</div>
                     <div class="pillar-value">{pillar['zhi']}</div>
                     <div>{wuxing_zhi_html} {yinyang_zhi_html}</div>
+                    {extra_info}
                 </div>
             """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 显示完整干支
+    st.success(f"**完整八字**: {bazi_result['year_pillar']['ganzhi']} {bazi_result['month_pillar']['ganzhi']} {bazi_result['day_pillar']['ganzhi']} {bazi_result['hour_pillar']['ganzhi']}")
     
     # 日主信息
     st.markdown("### 🌟 命主信息")
@@ -264,34 +271,23 @@ def display_results(bazi_result: dict, shishen_result: dict, birth_date):
     # 十神统计
     st.markdown("### 📈 十神统计")
     shishen_count = {}
-    for pillar_name in ['year', 'month', 'hour']:  # 不统计日柱的日主
+    for pillar_name in ['year', 'month', 'hour']:
         gan_shishen = shishen_result[pillar_name]['gan']
         zhi_shishen = shishen_result[pillar_name]['zhi']
         shishen_count[gan_shishen] = shishen_count.get(gan_shishen, 0) + 1
         shishen_count[zhi_shishen] = shishen_count.get(zhi_shishen, 0) + 1
     
-    # 加上日支的十神
     day_zhi_shishen = shishen_result['day']['zhi']
     shishen_count[day_zhi_shishen] = shishen_count.get(day_zhi_shishen, 0) + 1
     
     if shishen_count:
-        # 按数量排序
         sorted_shishen = sorted(shishen_count.items(), key=lambda x: x[1], reverse=True)
-        
-        # 动态创建列
         num_cols = min(len(sorted_shishen), 5)
         cols = st.columns(num_cols)
         
         for col, (shishen, count) in zip(cols, sorted_shishen[:5]):
             with col:
                 st.metric(label=shishen, value=f"{count} 个")
-        
-        # 如果超过5个，显示剩余的
-        if len(sorted_shishen) > 5:
-            st.markdown("**其他十神**:")
-            remaining = sorted_shishen[5:]
-            remaining_text = " | ".join([f"{s}: {c}个" for s, c in remaining])
-            st.text(remaining_text)
 
 
 if __name__ == "__main__":
