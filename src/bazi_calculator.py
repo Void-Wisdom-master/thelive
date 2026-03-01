@@ -1,10 +1,8 @@
 """
-八字计算核心模块 - 高精度修正版
-使用标准儒略日算法
+八字计算核心模块 - 完全修正版
 """
 from typing import Dict, Tuple
 from datetime import datetime, timedelta
-import math
 
 
 class BaziCalculator:
@@ -53,51 +51,41 @@ class BaziCalculator:
         '申': '阳', '酉': '阴', '戌': '阳', '亥': '阴'
     }
     
-    # 节气精确时间数据
+    # 节气精确时间数据（需要扩展更多年份）
     JIEQI_DATA = {
         2006: {
-            '立春': (2, 4, 7, 27),
-            '惊蛰': (3, 6, 1, 29),
-            '清明': (4, 5, 7, 15),
-            '立夏': (5, 5, 20, 3),
-            '芒种': (6, 6, 2, 29),
-            '小暑': (7, 7, 13, 18),
-            '立秋': (8, 8, 4, 17),
-            '白露': (9, 8, 0, 28),
-            '寒露': (10, 8, 16, 22),
-            '立冬': (11, 7, 21, 26),
-            '大雪': (12, 7, 13, 36),
-            '小寒': (1, 6, 3, 16),
+            '小寒': (2006, 1, 6, 3, 16),
+            '立春': (2006, 2, 4, 7, 27),
+            '惊蛰': (2006, 3, 6, 1, 29),
+            '清明': (2006, 4, 5, 7, 15),
+            '立夏': (2006, 5, 5, 20, 3),
+            '芒种': (2006, 6, 6, 2, 29),
+            '小暑': (2006, 7, 7, 13, 18),
+            '立秋': (2006, 8, 8, 4, 17),
+            '白露': (2006, 9, 8, 0, 28),
+            '寒露': (2006, 10, 8, 16, 22),
+            '立冬': (2006, 11, 7, 21, 26),
+            '大雪': (2006, 12, 7, 13, 36),
         },
-        2000: {
-            '立春': (2, 4, 20, 32),
-            '惊蛰': (3, 5, 14, 42),
-            '清明': (4, 4, 20, 39),
-            '立夏': (5, 5, 8, 51),
-            '芒种': (6, 5, 15, 26),
-            '小暑': (7, 7, 2, 6),
-            '立秋': (8, 7, 17, 9),
-            '白露': (9, 7, 13, 29),
-            '寒露': (10, 8, 5, 20),
-            '立冬': (11, 7, 10, 24),
-            '大雪': (12, 7, 2, 24),
-            '小寒': (1, 6, 16, 26),
+        2007: {
+            '小寒': (2007, 1, 6, 8, 57),
+            '立春': (2007, 2, 4, 13, 18),
+            '惊蛰': (2007, 3, 6, 7, 18),
+            '清明': (2007, 4, 5, 13, 4),
+            '立夏': (2007, 5, 6, 1, 51),
+            '芒种': (2007, 6, 6, 8, 18),
+            '小暑': (2007, 7, 7, 19, 7),
+            '立秋': (2007, 8, 8, 10, 6),
+            '白露': (2007, 9, 8, 6, 18),
+            '寒露': (2007, 10, 8, 22, 13),
+            '立冬': (2007, 11, 8, 3, 17),
+            '大雪': (2007, 12, 7, 19, 28),
         },
     }
     
     def calculate_bazi(self, year: int, month: int, day: int, hour: int, minute: int) -> Dict:
         """
         计算八字（高精度版本）
-        
-        Args:
-            year: 公历年
-            month: 公历月
-            day: 公历日
-            hour: 小时（0-23）
-            minute: 分钟
-            
-        Returns:
-            包含四柱信息的字典
         """
         # 1. 计算年柱（以立春为界）
         year_pillar, solar_year = self._calculate_year_pillar(year, month, day, hour, minute)
@@ -123,17 +111,15 @@ class BaziCalculator:
     def _get_lichun_time(self, year: int) -> datetime:
         """获取立春时间"""
         if year in self.JIEQI_DATA and '立春' in self.JIEQI_DATA[year]:
-            m, d, h, mi = self.JIEQI_DATA[year]['立春']
-            return datetime(year, m, d, h, mi)
+            y, m, d, h, mi = self.JIEQI_DATA[year]['立春']
+            return datetime(y, m, d, h, mi)
         
         # 默认估算：2月4日6点
         return datetime(year, 2, 4, 6, 0)
     
     def _calculate_year_pillar(self, year: int, month: int, day: int, 
                               hour: int, minute: int) -> Tuple[Dict, int]:
-        """
-        计算年柱（以立春为界）
-        """
+        """计算年柱（以立春为界）"""
         current_time = datetime(year, month, day, hour, minute)
         lichun_time = self._get_lichun_time(year)
         
@@ -165,11 +151,12 @@ class BaziCalculator:
                                hour: int, minute: int) -> Tuple[Dict, int]:
         """
         计算月柱（以节气为界）
+        月支由节气确定，月干由年干推算（五虎遁）
         """
         current_time = datetime(year, month, day, hour, minute)
         
-        # 确定月支
-        zhi_index = self._get_month_zhi_index(year, month, day, hour, minute)
+        # 确定月支（根据节气）
+        zhi_index = self._get_month_zhi_by_jieqi(year, month, day, hour, minute)
         zhi = self.DIZHI[zhi_index]
         
         # 使用五虎遁推算月干
@@ -178,12 +165,21 @@ class BaziCalculator:
         year_gan_index = self.TIANGAN.index(year_gan)
         
         # 五虎遁：甲己之年丙作首，乙庚之年戊为头，丙辛之年庚寅上，丁壬壬寅顺水流，戊癸甲寅为第一
+        # 意思是：甲年和己年，寅月从丙寅开始；乙年和庚年，寅月从戊寅开始...
         wuhu_start = {
-            0: 2, 1: 4, 2: 6, 3: 8, 4: 0,  # 甲丙戊庚壬
-            5: 2, 6: 4, 7: 6, 8: 8, 9: 0   # 己乙丁辛癸
+            0: 2,  # 甲 -> 丙寅
+            1: 4,  # 乙 -> 戊寅
+            2: 6,  # 丙 -> 庚寅
+            3: 8,  # 丁 -> 壬寅
+            4: 0,  # 戊 -> 甲寅
+            5: 2,  # 己 -> 丙寅
+            6: 4,  # 庚 -> 戊寅
+            7: 6,  # 辛 -> 庚寅
+            8: 8,  # 壬 -> 壬寅
+            9: 0   # 癸 -> 甲寅
         }
         
-        # 寅月为起始（地支index=2），当前月支相对于寅月的偏移
+        # 寅月为起始（地支index=2），计算当前月支相对于寅月的偏移
         offset = (zhi_index - 2) % 12
         gan_index = (wuhu_start[year_gan_index] + offset) % 10
         gan = self.TIANGAN[gan_index]
@@ -200,75 +196,96 @@ class BaziCalculator:
             'ganzhi': ganzhi
         }, zhi_index
     
-    def _get_month_zhi_index(self, year: int, month: int, day: int, 
-                            hour: int, minute: int) -> int:
-        """根据节气确定月支索引"""
+    def _get_month_zhi_by_jieqi(self, year: int, month: int, day: int, 
+                                hour: int, minute: int) -> int:
+        """
+        根据节气精确确定月支
+        
+        节气与月支对应关系：
+        立春-惊蛰：寅月(2)
+        惊蛰-清明：卯月(3)
+        清明-立夏：辰月(4)
+        立夏-芒种：巳月(5)
+        芒种-小暑：午月(6)
+        小暑-立秋：未月(7)
+        立秋-白露：申月(8)
+        白露-寒露：酉月(9)
+        寒露-立冬：戌月(10)
+        立冬-大雪：亥月(11)
+        大雪-小寒：子月(0)
+        小寒-立春：丑月(1)
+        """
         current_time = datetime(year, month, day, hour, minute)
         
-        # 节气到月支的映射（从寅月开始）
-        jieqi_to_zhi = {
-            '立春': 2,   # 寅月
-            '惊蛰': 3,   # 卯月
-            '清明': 4,   # 辰月
-            '立夏': 5,   # 巳月
-            '芒种': 6,   # 午月
-            '小暑': 7,   # 未月
-            '立秋': 8,   # 申月
-            '白露': 9,   # 酉月
-            '寒露': 10,  # 戌月
-            '立冬': 11,  # 亥月
-            '大雪': 0,   # 子月
-            '小寒': 1    # 丑月
-        }
+        # 节气列表（按时间顺序）
+        jieqi_list = [
+            ('立春', 2), ('惊蛰', 3), ('清明', 4), ('立夏', 5),
+            ('芒种', 6), ('小暑', 7), ('立秋', 8), ('白露', 9),
+            ('寒露', 10), ('立冬', 11), ('大雪', 0), ('小寒', 1)
+        ]
         
-        # 节气顺序（一年12个节气）
-        jieqi_order = ['立春', '惊蛰', '清明', '立夏', '芒种', '小暑', 
-                      '立秋', '白露', '寒露', '立冬', '大雪', '小寒']
-        
-        # 获取当年节气时间
+        # 获取当年的节气时间
         if year in self.JIEQI_DATA:
+            # 从当年节气中找到当前时间所在的月份
             jieqi_times = []
-            for jq_name in jieqi_order:
-                if jq_name in self.JIEQI_DATA[year]:
-                    m, d, h, mi = self.JIEQI_DATA[year][jq_name]
-                    jq_time = datetime(year, m, d, h, mi)
-                    jieqi_times.append((jq_time, jieqi_to_zhi[jq_name]))
+            for jieqi_name, zhi_idx in jieqi_list:
+                if jieqi_name in self.JIEQI_DATA[year]:
+                    y, m, d, h, mi = self.JIEQI_DATA[year][jieqi_name]
+                    jq_time = datetime(y, m, d, h, mi)
+                    jieqi_times.append((jq_time, zhi_idx, jieqi_name))
+            
+            # 排序节气时间
+            jieqi_times.sort(key=lambda x: x[0])
             
             # 找到当前时间所在的节气区间
             result_zhi = 1  # 默认丑月
             for i in range(len(jieqi_times)):
-                jq_time, zhi_idx = jieqi_times[i]
+                jq_time, zhi_idx, jq_name = jieqi_times[i]
                 if current_time >= jq_time:
                     result_zhi = zhi_idx
+                else:
+                    break
             
             return result_zhi
         
-        # 如果没有数据，使用估算
+        # 如果没有节气数据，使用粗略估算
         return self._estimate_month_zhi(month, day)
     
     def _estimate_month_zhi(self, month: int, day: int) -> int:
-        """估算月支"""
-        # 粗略对应
+        """估算月支（当没有精确节气数据时）"""
+        # 粗略对应（节气一般在每月4-8日）
+        adjust_month = month
+        if day < 6:  # 节气前，算上个月
+            adjust_month = month - 1
+            if adjust_month == 0:
+                adjust_month = 12
+        
         month_to_zhi = {
-            1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6,
-            7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 0
+            1: 1,   # 丑月（小寒-立春）
+            2: 2,   # 寅月（立春-惊蛰）
+            3: 3,   # 卯月（惊蛰-清明）
+            4: 4,   # 辰月（清明-立夏）
+            5: 5,   # 巳月（立夏-芒种）
+            6: 6,   # 午月（芒种-小暑）
+            7: 7,   # 未月（小暑-立秋）
+            8: 8,   # 申月（立秋-白露）
+            9: 9,   # 酉月（白露-寒露）
+            10: 10, # 戌月（寒露-立冬）
+            11: 11, # 亥月（立冬-大雪）
+            12: 0   # 子月（大雪-小寒）
         }
         
-        # 如果在月初几天，可能还是上个月的节气
-        if day < 6:
-            month = month - 1
-            if month == 0:
-                month = 12
-        
-        return month_to_zhi.get(month, 2)
+        return month_to_zhi.get(adjust_month, 2)
     
     def _calculate_day_pillar(self, year: int, month: int, day: int, hour: int) -> Tuple[Dict, datetime]:
         """
-        计算日柱（使用高精度儒略日算法）
-        子时换日：23:00-23:59归属次日
+        计算日柱（使用高精度基准日算法）
         
-        关键修正：使用2000年1月1日作为已知基准点
-        2000年1月1日是戊辰日（干支序号：4）
+        关键：使用已知准确的基准日
+        2000年1月1日 = 庚辰日（干支序号：16）
+        
+        验证：
+        - 甲子 = 0, 乙丑 = 1, ..., 庚辰 = 16
         """
         calc_year, calc_month, calc_day = year, month, day
         
@@ -277,13 +294,19 @@ class BaziCalculator:
             dt = datetime(year, month, day) + timedelta(days=1)
             calc_year, calc_month, calc_day = dt.year, dt.month, dt.day
         
-        # 计算相对于基准日（2000年1月1日，戊辰日）的天数差
+        # 计算相对于基准日的天数差
+        # 基准日：2000年1月1日为庚辰日
         base_date = datetime(2000, 1, 1)
         current_date = datetime(calc_year, calc_month, calc_day)
         days_diff = (current_date - base_date).days
         
-        # 2000年1月1日是戊辰日，在60甲子中的索引是4（甲子=0, 乙丑=1, 丙寅=2, 丁卯=3, 戊辰=4）
-        base_index = 4
+        # 2000年1月1日是庚辰日
+        # 在60甲子中：甲子=0, 乙丑=1, 丙寅=2, ..., 庚辰=16
+        # 庚是第7个天干(index=6)，辰是第5个地支(index=4)
+        # 60甲子索引 = 天干index*6 + 地支调整
+        # 更直接：查表得知庚辰在60甲子中的序号
+        base_ganzhi = '庚辰'
+        base_index = self.JIAZI_60.index(base_ganzhi)  # = 16
         
         # 计算当前日期的干支索引
         ganzhi_index = (base_index + days_diff) % 60
@@ -306,20 +329,6 @@ class BaziCalculator:
         """
         计算时柱
         每个时辰2小时，细分为早、正
-        
-        时辰对应：
-        23:00-00:59 子时（23:00-23:59早子，00:00-00:59正子）
-        01:00-02:59 丑时（01:00-01:59早丑，02:00-02:59正丑）
-        03:00-04:59 寅时
-        05:00-06:59 卯时
-        07:00-08:59 辰时
-        09:00-10:59 巳时
-        11:00-12:59 午时（11:00-11:59早午，12:00-12:59正午）
-        13:00-14:59 未时
-        15:00-16:59 申时
-        17:00-18:59 酉时
-        19:00-20:59 戌时
-        21:00-22:59 亥时
         """
         
         # 确定时支
