@@ -1,5 +1,6 @@
 """
 八字计算核心模块 - 完全修正版
+根据标准万年历验证
 """
 from typing import Dict, Tuple
 from datetime import datetime, timedelta
@@ -51,7 +52,7 @@ class BaziCalculator:
         '申': '阳', '酉': '阴', '戌': '阳', '亥': '阴'
     }
     
-    # 节气精确时间数据（需要扩展更多年份）
+    # 节气精确时间数据
     JIEQI_DATA = {
         2006: {
             '小寒': (2006, 1, 6, 3, 16),
@@ -66,20 +67,6 @@ class BaziCalculator:
             '寒露': (2006, 10, 8, 16, 22),
             '立冬': (2006, 11, 7, 21, 26),
             '大雪': (2006, 12, 7, 13, 36),
-        },
-        2007: {
-            '小寒': (2007, 1, 6, 8, 57),
-            '立春': (2007, 2, 4, 13, 18),
-            '惊蛰': (2007, 3, 6, 7, 18),
-            '清明': (2007, 4, 5, 13, 4),
-            '立夏': (2007, 5, 6, 1, 51),
-            '芒种': (2007, 6, 6, 8, 18),
-            '小暑': (2007, 7, 7, 19, 7),
-            '立秋': (2007, 8, 8, 10, 6),
-            '白露': (2007, 9, 8, 6, 18),
-            '寒露': (2007, 10, 8, 22, 13),
-            '立冬': (2007, 11, 8, 3, 17),
-            '大雪': (2007, 12, 7, 19, 28),
         },
     }
     
@@ -149,13 +136,10 @@ class BaziCalculator:
     
     def _calculate_month_pillar(self, year: int, month: int, day: int, 
                                hour: int, minute: int) -> Tuple[Dict, int]:
-        """
-        计算月柱（以节气为界）
-        月支由节气确定，月干由年干推算（五虎遁）
-        """
+        """计算月柱（以节气为界）"""
         current_time = datetime(year, month, day, hour, minute)
         
-        # 确定月支（根据节气）
+        # 确定月支
         zhi_index = self._get_month_zhi_by_jieqi(year, month, day, hour, minute)
         zhi = self.DIZHI[zhi_index]
         
@@ -165,7 +149,6 @@ class BaziCalculator:
         year_gan_index = self.TIANGAN.index(year_gan)
         
         # 五虎遁：甲己之年丙作首，乙庚之年戊为头，丙辛之年庚寅上，丁壬壬寅顺水流，戊癸甲寅为第一
-        # 意思是：甲年和己年，寅月从丙寅开始；乙年和庚年，寅月从戊寅开始...
         wuhu_start = {
             0: 2,  # 甲 -> 丙寅
             1: 4,  # 乙 -> 戊寅
@@ -198,23 +181,7 @@ class BaziCalculator:
     
     def _get_month_zhi_by_jieqi(self, year: int, month: int, day: int, 
                                 hour: int, minute: int) -> int:
-        """
-        根据节气精确确定月支
-        
-        节气与月支对应关系：
-        立春-惊蛰：寅月(2)
-        惊蛰-清明：卯月(3)
-        清明-立夏：辰月(4)
-        立夏-芒种：巳月(5)
-        芒种-小暑：午月(6)
-        小暑-立秋：未月(7)
-        立秋-白露：申月(8)
-        白露-寒露：酉月(9)
-        寒露-立冬：戌月(10)
-        立冬-大雪：亥月(11)
-        大雪-小寒：子月(0)
-        小寒-立春：丑月(1)
-        """
+        """根据节气精确确定月支"""
         current_time = datetime(year, month, day, hour, minute)
         
         # 节气列表（按时间顺序）
@@ -226,7 +193,6 @@ class BaziCalculator:
         
         # 获取当年的节气时间
         if year in self.JIEQI_DATA:
-            # 从当年节气中找到当前时间所在的月份
             jieqi_times = []
             for jieqi_name, zhi_idx in jieqi_list:
                 if jieqi_name in self.JIEQI_DATA[year]:
@@ -252,40 +218,25 @@ class BaziCalculator:
         return self._estimate_month_zhi(month, day)
     
     def _estimate_month_zhi(self, month: int, day: int) -> int:
-        """估算月支（当没有精确节气数据时）"""
-        # 粗略对应（节气一般在每月4-8日）
+        """估算月支"""
         adjust_month = month
-        if day < 6:  # 节气前，算上个月
+        if day < 6:
             adjust_month = month - 1
             if adjust_month == 0:
                 adjust_month = 12
         
         month_to_zhi = {
-            1: 1,   # 丑月（小寒-立春）
-            2: 2,   # 寅月（立春-惊蛰）
-            3: 3,   # 卯月（惊蛰-清明）
-            4: 4,   # 辰月（清明-立夏）
-            5: 5,   # 巳月（立夏-芒种）
-            6: 6,   # 午月（芒种-小暑）
-            7: 7,   # 未月（小暑-立秋）
-            8: 8,   # 申月（立秋-白露）
-            9: 9,   # 酉月（白露-寒露）
-            10: 10, # 戌月（寒露-立冬）
-            11: 11, # 亥月（立冬-大雪）
-            12: 0   # 子月（大雪-小寒）
+            1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6,
+            7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 0
         }
         
         return month_to_zhi.get(adjust_month, 2)
     
     def _calculate_day_pillar(self, year: int, month: int, day: int, hour: int) -> Tuple[Dict, datetime]:
         """
-        计算日柱（使用高精度基准日算法）
+        计算日柱
         
-        关键：使用已知准确的基准日
-        2000年1月1日 = 庚辰日（干支序号：16）
-        
-        验证：
-        - 甲子 = 0, 乙丑 = 1, ..., 庚辰 = 16
+        使用基准日：2000年1月1日 = 戊午日（已验证）
         """
         calc_year, calc_month, calc_day = year, month, day
         
@@ -294,19 +245,14 @@ class BaziCalculator:
             dt = datetime(year, month, day) + timedelta(days=1)
             calc_year, calc_month, calc_day = dt.year, dt.month, dt.day
         
-        # 计算相对于基准日的天数差
-        # 基准日：2000年1月1日为庚辰日
+        # 使用2000年1月1日作为基准日（戊午日）
         base_date = datetime(2000, 1, 1)
         current_date = datetime(calc_year, calc_month, calc_day)
         days_diff = (current_date - base_date).days
         
-        # 2000年1月1日是庚辰日
-        # 在60甲子中：甲子=0, 乙丑=1, 丙寅=2, ..., 庚辰=16
-        # 庚是第7个天干(index=6)，辰是第5个地支(index=4)
-        # 60甲子索引 = 天干index*6 + 地支调整
-        # 更直接：查表得知庚辰在60甲子中的序号
-        base_ganzhi = '庚辰'
-        base_index = self.JIAZI_60.index(base_ganzhi)  # = 16
+        # 2000年1月1日是戊午日，索引54
+        base_ganzhi = '戊午'
+        base_index = self.JIAZI_60.index(base_ganzhi)  # 54
         
         # 计算当前日期的干支索引
         ganzhi_index = (base_index + days_diff) % 60
@@ -328,7 +274,13 @@ class BaziCalculator:
     def _calculate_hour_pillar(self, day_gan: str, hour: int, minute: int) -> Dict:
         """
         计算时柱
-        每个时辰2小时，细分为早、正
+        
+        时辰划分：
+        23:00-00:59 子时
+        01:00-02:59 丑时
+        ...
+        11:00-12:59 午时
+        ...
         """
         
         # 确定时支
@@ -339,7 +291,7 @@ class BaziCalculator:
             zhi_index = 0  # 子时
             shi_duan = "正子"
         else:
-            # 1-2点丑，3-4点寅，5-6点卯...
+            # 1-2点丑(1)，3-4点寅(2)，5-6点卯(3)，7-8点辰(4)，9-10点巳(5)，11-12点午(6)
             zhi_index = ((hour + 1) // 2) % 12
             # 奇数小时为早，偶数小时为正
             if hour % 2 == 1:
@@ -350,22 +302,25 @@ class BaziCalculator:
         zhi = self.DIZHI[zhi_index]
         
         # 使用五鼠遁推算时干
-        # 五鼠遁：甲己还加甲，乙庚丙作初，丙辛从戊起，丁壬庚子居，戊癸何方发，壬子是真途
+        # 口诀：甲己还加甲，乙庚丙作初，丙辛从戊起，丁壬庚子居，戊癸何方发，壬子是真途
         day_gan_index = self.TIANGAN.index(day_gan)
         
+        # 五鼠遁起始天干（从子时开始）
         wushu_start = {
-            0: 0,  # 甲日子时从甲子开始
-            1: 2,  # 乙日子时从丙子开始
-            2: 4,  # 丙日子时从戊子开始
-            3: 6,  # 丁日子时从庚子开始
-            4: 8,  # 戊日子时从壬子开始
-            5: 0,  # 己日子时从甲子开始
-            6: 2,  # 庚日子时从丙子开始
-            7: 4,  # 辛日子时从戊子开始
-            8: 6,  # 壬日子时从庚子开始
-            9: 8   # 癸日子时从壬子开始
+            0: 0,  # 甲日 -> 子时甲子
+            1: 2,  # 乙日 -> 子时丙子
+            2: 4,  # 丙日 -> 子时戊子
+            3: 6,  # 丁日 -> 子时庚子
+            4: 8,  # 戊日 -> 子时壬子
+            5: 0,  # 己日 -> 子时甲子
+            6: 2,  # 庚日 -> 子时丙子
+            7: 4,  # 辛日 -> 子时戊子
+            8: 6,  # 壬日 -> 子时庚子
+            9: 8   # 癸日 -> 子时壬子
         }
         
+        # 从子时开始，按地支顺序推算天干
+        # 例如：甲日午时 = 甲日子时(甲子) + 6个时辰 = 甲(0) + 6 = 庚(6)
         gan_index = (wushu_start[day_gan_index] + zhi_index) % 10
         gan = self.TIANGAN[gan_index]
         
