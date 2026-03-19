@@ -118,7 +118,7 @@ DEFAULT_SHICHEN_LABEL = "午时 (11:00-12:59)"
 # session_state 初始化
 # ----------------------------
 def init_state():
-    """初始化会话状态"""
+    """初始化会话状态（仅第一次运行）"""
     st.session_state.setdefault("birth_date", DEFAULT_DATE)
     st.session_state.setdefault("gender", DEFAULT_GENDER)
     st.session_state.setdefault("birth_hour", DEFAULT_HOUR)
@@ -130,23 +130,9 @@ def init_state():
     st.session_state.setdefault("last_result", None)
     st.session_state.setdefault("last_shishen", None)
     st.session_state.setdefault("last_input", None)
-
-
-def reset_form_to_default():
-    """重置表单为默认值"""
-    st.session_state["birth_date"] = DEFAULT_DATE
-    st.session_state["gender"] = DEFAULT_GENDER
-    st.session_state["birth_hour"] = DEFAULT_HOUR
-    st.session_state["birth_minute"] = DEFAULT_MINUTE
-    st.session_state["use_shichen"] = True
-    st.session_state["shichen_label"] = DEFAULT_SHICHEN_LABEL
-
-
-def clear_last_result():
-    """清空上次结果"""
-    st.session_state["last_result"] = None
-    st.session_state["last_shishen"] = None
-    st.session_state["last_input"] = None
+    
+    # 标志位：是否需要重置表单（在 rerun 后执行）
+    st.session_state.setdefault("should_reset_form", False)
 
 
 init_state()
@@ -169,10 +155,12 @@ if st.session_state["last_result"] is not None:
     # 标题 + 清空按钮
     col_title, col_btn = st.columns([4, 1])
     with col_title:
-        st.markdown("### ✅ 上次排盘结果")
+        st.markdown("### ��� 上次排盘结果")
     with col_btn:
         if st.button("🗑️ 清空", use_container_width=True, key="clear_result_btn"):
-            clear_last_result()
+            st.session_state["last_result"] = None
+            st.session_state["last_shishen"] = None
+            st.session_state["last_input"] = None
             st.rerun()
 
     # 出生信息
@@ -192,7 +180,7 @@ if st.session_state["last_result"] is not None:
     )
 
     # 四柱卡片展示
-    st.markdown("#### 📊 四柱八字")
+    st.markdown("#### 📊 ��柱八字")
     st.markdown('<div class="pillar-container">', unsafe_allow_html=True)
     st.markdown('<div class="pillar-title">四柱详情</div>', unsafe_allow_html=True)
 
@@ -309,7 +297,7 @@ if st.session_state["last_result"] is not None:
 
 
 # ----------------------------
-# 输入表单
+# 输入表单（使用默认值初始化）
 # ----------------------------
 with st.form("bazi_form", clear_on_submit=False):
     col1, col2 = st.columns(2)
@@ -317,25 +305,28 @@ with st.form("bazi_form", clear_on_submit=False):
     with col1:
         birth_date = st.date_input(
             "📅 出生日期（公历）",
-            key="birth_date",
+            value=st.session_state["birth_date"],
             min_value=date(1900, 1, 1),
-            max_value=date(2100, 12, 31)
+            max_value=date(2100, 12, 31),
+            key="birth_date"
         )
 
     with col2:
         gender = st.selectbox(
             "👤 性别",
             options=["男", "女"],
+            index=["男", "女"].index(st.session_state["gender"]),
             key="gender"
         )
 
-    st.markdown("### ⏰ 出生时间")
-    use_shichen = st.toggle("用时辰选择（推荐）", key="use_shichen")
+    st.markdown("### ��� 出生时间")
+    use_shichen = st.toggle("用时辰选择（推荐）", value=st.session_state["use_shichen"], key="use_shichen")
 
     if use_shichen:
         shichen_label = st.selectbox(
             "时辰",
             options=list(SHICHEN_TO_HOUR.keys()),
+            index=list(SHICHEN_TO_HOUR.keys()).index(st.session_state["shichen_label"]),
             key="shichen_label"
         )
         birth_hour = SHICHEN_TO_HOUR[shichen_label]
@@ -343,6 +334,7 @@ with st.form("bazi_form", clear_on_submit=False):
             "分钟",
             min_value=0,
             max_value=59,
+            value=st.session_state["birth_minute"],
             key="birth_minute"
         )
     else:
@@ -352,6 +344,7 @@ with st.form("bazi_form", clear_on_submit=False):
                 "小时",
                 min_value=0,
                 max_value=23,
+                value=st.session_state["birth_hour"],
                 key="birth_hour"
             )
         with col4:
@@ -359,6 +352,7 @@ with st.form("bazi_form", clear_on_submit=False):
                 "分钟",
                 min_value=0,
                 max_value=59,
+                value=st.session_state["birth_minute"],
                 key="birth_minute"
             )
 
@@ -366,7 +360,7 @@ with st.form("bazi_form", clear_on_submit=False):
 
 
 # ----------------------------
-# 提交处理
+# 提交处理（在 rerun 后执行）
 # ----------------------------
 if submitted:
     try:
@@ -395,8 +389,8 @@ if submitted:
             "gender": gender,
         }
 
-        # 重置表单
-        reset_form_to_default()
+        # 标记需要重置
+        st.session_state["should_reset_form"] = True
 
         # 重新运行页面
         st.rerun()
@@ -406,3 +400,16 @@ if submitted:
         import traceback
         with st.expander("查看错误详情"):
             st.code(traceback.format_exc())
+
+
+# ----------------------------
+# 在 rerun 后执行重置（此时 widget 已经全部渲染完毕）
+# ----------------------------
+if st.session_state.get("should_reset_form", False):
+    st.session_state["birth_date"] = DEFAULT_DATE
+    st.session_state["gender"] = DEFAULT_GENDER
+    st.session_state["birth_hour"] = DEFAULT_HOUR
+    st.session_state["birth_minute"] = DEFAULT_MINUTE
+    st.session_state["use_shichen"] = True
+    st.session_state["shichen_label"] = DEFAULT_SHICHEN_LABEL
+    st.session_state["should_reset_form"] = False
