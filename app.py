@@ -92,7 +92,7 @@ def main():
     """主函数"""
     
     # 标题
-    st.markdown('<div class="main-title">🔮 八字排盘系统</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">八字排盘系统</div>', unsafe_allow_html=True)
     st.markdown('<div class="subtitle">高精度儒略日算法 · 标准天文历法</div>', unsafe_allow_html=True)
     
     # 创建表单
@@ -102,7 +102,7 @@ def main():
         with col1:
             birth_date = st.date_input(
                 "📅 出生日期（公历）",
-                value=datetime(2006, 3, 26),
+                value=datetime(2000, 1, 1),
                 min_value=datetime(1900, 1, 1),
                 max_value=datetime(2100, 12, 31)
             )
